@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/fix-next-server-chunks.mjs",
+    "build": "npm run prisma:generate && next build && node scripts/fix-next-server-chunks.mjs",
     "build:hostinger": "npm run build && node scripts/prepare-hostinger-node-package.mjs",
     "start": "node .next/standalone/server.js",
     "start:standalone": "node .next/standalone/server.js",
