@@ -1,0 +1,838 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Socio {
+  id         Int       @id @default(autoincrement())
+  nombre     String
+  apellido   String
+  dni        String    @unique
+  email      String?
+  telefono   String?
+  fechaAlta  DateTime  @default(now())
+  estado     String    @default("ACTIVO")
+  abonados   Abonado[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([estado])
+}
+
+model Abonado {
+  id               Int              @id @default(autoincrement())
+  socioId          Int?
+  esSocio          Boolean          @default(false)
+  numeroAbonado    String           @unique
+  nombre           String?
+  apellido         String?
+  documento        String?
+  tipoDocumento    String?          @default("DNI")
+  razonSocial      String?
+  cuit             String?
+  telefono         String?
+  email            String?
+  domicilio        String
+  localidad        String
+  provincia        String?
+  codigoPostal     String?
+  condicionFiscal  String?
+  condicionIva     String           @default("CONSUMIDOR_FINAL")
+  observaciones    String?          @db.Text
+  estado           String           @default("ACTIVO")
+  portalActivo     Boolean          @default(false)
+  portalPasswordHash String?
+  portalUltimoAccesoAt DateTime?
+  fechaAlta        DateTime         @default(now())
+  socio            Socio?           @relation(fields: [socioId], references: [id])
+  servicios        Servicio[]
+  facturas         Factura[]
+  movimientos      CuentaCorriente[]
+  pagos            Pago[]
+  reclamos         Reclamo[]
+  ordenesTrabajo   OrdenTrabajo[]
+  gestionesCobranza GestionCobranza[]
+  acuerdosPago     AcuerdoPago[]
+  comunicaciones   ComunicacionAbonado[]
+  publicacionesPortal PublicacionPortal[]
+  interaccionesPortal PortalInteraccion[]
+  pagosExternos    PagoExterno[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([socioId])
+  @@index([estado])
+  @@index([condicionIva])
+  @@index([esSocio])
+}
+
+model ServicioCatalogo {
+  id                 Int        @id @default(autoincrement())
+  codigo             String     @unique
+  nombre             String
+  categoria          String
+  descripcion        String?    @db.Text
+  precioBase         Decimal    @db.Decimal(10, 2)
+  periodicidad       String     @default("MENSUAL")
+  condicionIva       String     @default("GRAVADO")
+  alicuotaIva        Decimal    @default(21) @db.Decimal(5, 2)
+  conceptoFacturado  String     @default("SERVICIO")
+  activo             Boolean    @default(true)
+  servicios          Servicio[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([categoria])
+  @@index([activo])
+}
+
+model Servicio {
+  id                 Int               @id @default(autoincrement())
+  abonadoId          Int
+  servicioCatalogoId Int?
+  numeroContrato     String?
+  tipo               String
+  plan               String
+  precio             Decimal           @db.Decimal(10, 2)
+  cantidad           Decimal           @default(1) @db.Decimal(10, 2)
+  bonificacion       Decimal           @default(0) @db.Decimal(10, 2)
+  facturable         Boolean           @default(true)
+  estado             String            @default("ACTIVO")
+  fechaAlta          DateTime          @default(now())
+  fechaBaja          DateTime?
+  observaciones      String?           @db.Text
+  abonado            Abonado           @relation(fields: [abonadoId], references: [id])
+  servicioCatalogo   ServicioCatalogo? @relation(fields: [servicioCatalogoId], references: [id])
+  detallesFactura    FacturaDetalle[]
+  ordenesTrabajo     OrdenTrabajo[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([abonadoId])
+  @@index([tipo])
+  @@index([servicioCatalogoId])
+}
+
+model Factura {
+  id                 Int              @id @default(autoincrement())
+  abonadoId          Int
+  facturaOrigenId    Int?
+  numero             String           @unique
+  fechaEmision       DateTime
+  fechaVencimiento   DateTime
+  subtotal           Decimal          @default(0) @db.Decimal(10, 2)
+  totalIva           Decimal          @default(0) @db.Decimal(10, 2)
+  total              Decimal          @db.Decimal(10, 2)
+  estado             String           @default("PENDIENTE")
+  tipoAjuste         String?
+  motivoAjuste       String?          @db.Text
+  condicionIvaEmisor String?
+  condicionIvaReceptor String?
+  tipoComprobanteArca String          @default("011")
+  conceptoArca       String           @default("2")
+  tipoDocumentoReceptor String?
+  numeroDocumentoReceptor String?
+  monedaCodigo       String           @default("PES")
+  monedaCotizacion   Decimal          @default(1) @db.Decimal(10, 4)
+  puntoVentaArca     String?
+  numeroComprobanteArca Int?
+  resultadoArca      String           @default("NO_ENVIADA")
+  cae                String?
+  caeVencimiento     DateTime?
+  autorizadoArcaAt   DateTime?
+  observacionesArca  String?          @db.Text
+  abonado            Abonado          @relation(fields: [abonadoId], references: [id])
+  facturaOrigen      Factura?         @relation("FacturaAjuste", fields: [facturaOrigenId], references: [id])
+  notasRelacionadas  Factura[]        @relation("FacturaAjuste")
+  movimientos        CuentaCorriente[]
+  detalles           FacturaDetalle[]
+  gestionesCobranza  GestionCobranza[]
+  acuerdosPago       AcuerdoPago[]
+  pagosExternos      PagoExterno[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([abonadoId])
+  @@index([facturaOrigenId])
+  @@index([estado])
+  @@index([tipoAjuste])
+  @@index([tipoComprobanteArca])
+  @@index([resultadoArca])
+}
+
+model FacturaDetalle {
+  id               Int       @id @default(autoincrement())
+  facturaId        Int
+  servicioId       Int?
+  reclamoMaterialId Int?
+  descripcion      String
+  cantidad         Decimal   @default(1) @db.Decimal(10, 2)
+  precioUnitario   Decimal   @db.Decimal(10, 2)
+  subtotal         Decimal   @db.Decimal(10, 2)
+  ivaAlicuota      Decimal   @default(0) @db.Decimal(5, 2)
+  ivaImporte       Decimal   @default(0) @db.Decimal(10, 2)
+  totalLinea       Decimal   @db.Decimal(10, 2)
+  factura          Factura   @relation(fields: [facturaId], references: [id])
+  servicio         Servicio? @relation(fields: [servicioId], references: [id])
+  reclamoMaterial  ReclamoMaterial? @relation(fields: [reclamoMaterialId], references: [id])
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([facturaId])
+  @@index([servicioId])
+  @@index([reclamoMaterialId])
+}
+
+model ConfiguracionFacturacion {
+  id                   Int      @id @default(autoincrement())
+  razonSocial          String
+  cuit                 String
+  condicionIvaEmisor   String   @default("RESPONSABLE_INSCRIPTO")
+  puntoVenta           String   @default("0001")
+  provincia            String?
+  ingresosBrutos       String?
+  inicioActividad      DateTime?
+  notasLegales         String?  @db.Text
+  ambienteArca         String   @default("HOMOLOGACION")
+  arcaHabilitado       Boolean  @default(false)
+  tipoComprobanteDefault String @default("011")
+  conceptoArcaDefault  String   @default("2")
+  monedaCodigoDefault  String   @default("PES")
+  arcaWsService        String   @default("wsfe")
+  cuitRepresentadaArca String?
+  aliasCertificadoArca String?
+  certificadoRutaArca  String?
+  clavePrivadaRutaArca String?
+  ticketAccesoVenceAt  DateTime?
+  ultimoTicketArcaAt   DateTime?
+  observacionesArca    String?  @db.Text
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model CuentaCorriente {
+  id          Int       @id @default(autoincrement())
+  abonadoId   Int
+  facturaId   Int?
+  pagoId      Int?
+  tipo        String
+  importe     Decimal   @db.Decimal(10, 2)
+  saldo       Decimal   @db.Decimal(10, 2)
+  fecha       DateTime
+  descripcion String
+  anuladoAt   DateTime?
+  abonado     Abonado   @relation(fields: [abonadoId], references: [id])
+  factura     Factura?  @relation(fields: [facturaId], references: [id])
+  pago        Pago?     @relation(fields: [pagoId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([abonadoId])
+  @@index([facturaId])
+  @@index([pagoId])
+}
+
+model Usuario {
+  id           Int       @id @default(autoincrement())
+  nombre       String
+  email        String    @unique
+  rol          String
+  activo       Boolean   @default(true)
+  passwordHash String?
+  lastLoginAt  DateTime?
+  pagos        Pago[]
+  reclamos     Reclamo[]
+  ordenesTrabajo OrdenTrabajo[]
+  gestionesCobranza GestionCobranza[]
+  acuerdosPago AcuerdoPago[]
+  comunicaciones ComunicacionAbonado[]
+  publicacionesPortal PublicacionPortal[] @relation("PublicacionPortalAutor")
+  auditorias   Auditoria[]
+  cajasApertura CajaCierre[] @relation("CajaApertura")
+  cajasCierre   CajaCierre[] @relation("CajaCierre")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([rol])
+}
+
+model GestionCobranza {
+  id                Int      @id @default(autoincrement())
+  abonadoId         Int
+  usuarioId         Int
+  facturaId         Int?
+  canal             String
+  resultado         String
+  estado            String   @default("REGISTRADA")
+  detalle           String?  @db.Text
+  compromisoPagoAt  DateTime?
+  compromisoImporte Decimal? @db.Decimal(10, 2)
+  proximaGestionAt  DateTime?
+  cerradaAt         DateTime?
+  abonado           Abonado  @relation(fields: [abonadoId], references: [id])
+  usuario           Usuario  @relation(fields: [usuarioId], references: [id])
+  factura           Factura? @relation(fields: [facturaId], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([abonadoId])
+  @@index([usuarioId])
+  @@index([facturaId])
+  @@index([estado])
+  @@index([compromisoPagoAt])
+  @@index([proximaGestionAt])
+}
+
+model AcuerdoPago {
+  id                Int                @id @default(autoincrement())
+  abonadoId         Int
+  usuarioId         Int
+  facturaId         Int?
+  numero            String             @unique
+  fechaAcuerdo      DateTime           @default(now())
+  estado            String             @default("VIGENTE")
+  descripcion       String?            @db.Text
+  totalAcuerdo      Decimal            @db.Decimal(10, 2)
+  cantidadCuotas    Int
+  primerVencimiento DateTime
+  observaciones     String?            @db.Text
+  cerradoAt         DateTime?
+  abonado           Abonado            @relation(fields: [abonadoId], references: [id])
+  usuario           Usuario            @relation(fields: [usuarioId], references: [id])
+  factura           Factura?           @relation(fields: [facturaId], references: [id])
+  cuotas            AcuerdoPagoCuota[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([abonadoId])
+  @@index([usuarioId])
+  @@index([facturaId])
+  @@index([estado])
+  @@index([fechaAcuerdo])
+}
+
+model AcuerdoPagoCuota {
+  id              Int         @id @default(autoincrement())
+  acuerdoPagoId   Int
+  numeroCuota     Int
+  fechaVencimiento DateTime
+  importe         Decimal     @db.Decimal(10, 2)
+  estado          String      @default("PENDIENTE")
+  cumplidaAt      DateTime?
+  observaciones   String?     @db.Text
+  acuerdoPago     AcuerdoPago @relation(fields: [acuerdoPagoId], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([acuerdoPagoId])
+  @@index([fechaVencimiento])
+  @@index([estado])
+  @@unique([acuerdoPagoId, numeroCuota])
+}
+
+model Pago {
+  id              Int              @id @default(autoincrement())
+  abonadoId       Int
+  numeroRecibo    String?          @unique
+  pagoExternoId   Int?             @unique
+  importe         Decimal          @db.Decimal(10, 2)
+  medioPago       String
+  fecha           DateTime
+  estado          String           @default("REGISTRADO")
+  motivoAnulacion String?          @db.Text
+  anuladoAt       DateTime?
+  usuarioId       Int
+  pagoExterno     PagoExterno?     @relation(fields: [pagoExternoId], references: [id])
+  abonado         Abonado          @relation(fields: [abonadoId], references: [id])
+  usuario         Usuario          @relation(fields: [usuarioId], references: [id])
+  movimientos     CuentaCorriente[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([abonadoId])
+  @@index([usuarioId])
+  @@index([numeroRecibo])
+  @@index([pagoExternoId])
+  @@index([estado])
+}
+
+model PasarelaPago {
+  id                           Int                 @id @default(autoincrement())
+  codigo                       String              @unique
+  nombre                       String
+  proveedor                    String
+  activa                       Boolean             @default(true)
+  modo                         String              @default("PRUEBA")
+  moneda                       String              @default("ARS")
+  checkoutBaseUrl              String?
+  webhookPath                  String?
+  publicKey                    String?
+  secretKeyMasked              String?
+  confirmacionAutomatica       Boolean             @default(false)
+  permiteCorteAutomatico       Boolean             @default(false)
+  permiteReconexionAutomatica  Boolean             @default(false)
+  requiereValidacionManual     Boolean             @default(true)
+  orden                        Int                 @default(0)
+  observaciones                String?             @db.Text
+  pagosExternos                PagoExterno[]
+  webhooks                     WebhookPasarelaEvento[]
+  createdAt                    DateTime            @default(now())
+  updatedAt                    DateTime            @updatedAt
+
+  @@index([activa])
+  @@index([proveedor])
+  @@index([modo])
+}
+
+model PagoExterno {
+  id                    Int                   @id @default(autoincrement())
+  abonadoId             Int
+  facturaId             Int?
+  pasarelaId            Int
+  referenciaInterna     String                @unique
+  referenciaExterna     String?
+  estado                String                @default("BORRADOR")
+  importe               Decimal               @db.Decimal(10, 2)
+  moneda                String                @default("ARS")
+  descripcion           String?
+  checkoutUrl           String?
+  vencimientoAt         DateTime?
+  solicitadoAt          DateTime?
+  confirmadoAt          DateTime?
+  conciliadoAt          DateTime?
+  payloadJson           String?               @db.Text
+  notasInternas         String?               @db.Text
+  abonado               Abonado               @relation(fields: [abonadoId], references: [id])
+  factura               Factura?              @relation(fields: [facturaId], references: [id])
+  pasarela              PasarelaPago          @relation(fields: [pasarelaId], references: [id])
+  pago                  Pago?
+  webhooks              WebhookPasarelaEvento[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([abonadoId])
+  @@index([facturaId])
+  @@index([pasarelaId])
+  @@index([estado])
+  @@index([referenciaExterna])
+  @@index([confirmadoAt])
+}
+
+model WebhookPasarelaEvento {
+  id                 Int          @id @default(autoincrement())
+  pasarelaId         Int
+  pagoExternoId      Int?
+  tipoEvento         String
+  referenciaExterna  String?
+  estado             String       @default("RECIBIDO")
+  payloadJson        String       @db.Text
+  firmaValida        Boolean?
+  procesadoAt        DateTime?
+  errorDetalle       String?      @db.Text
+  pasarela           PasarelaPago @relation(fields: [pasarelaId], references: [id])
+  pagoExterno        PagoExterno? @relation(fields: [pagoExternoId], references: [id])
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([pasarelaId])
+  @@index([pagoExternoId])
+  @@index([tipoEvento])
+  @@index([estado])
+  @@index([referenciaExterna])
+}
+
+model ReglaAutomatizacion {
+  id                             Int      @id @default(autoincrement())
+  codigo                         String   @unique
+  nombre                         String
+  activa                         Boolean  @default(true)
+  requierePagoAcreditado         Boolean  @default(true)
+  minFacturasVencidasParaCorte   Int      @default(1)
+  diasGraciaCorte                Int      @default(0)
+  montoMinimoCorte               Decimal  @default(0) @db.Decimal(10, 2)
+  bloquearConPromesaVigente      Boolean  @default(true)
+  bloquearConAcuerdoVigente      Boolean  @default(true)
+  reactivarConSaldoCero          Boolean  @default(true)
+  reactivarConPagoConfirmado     Boolean  @default(true)
+  generarOrdenCorteAutomatica    Boolean  @default(false)
+  generarOrdenReconexionAutomatica Boolean @default(false)
+  observaciones                  String?  @db.Text
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+
+  @@index([activa])
+}
+
+model EjecucionAutomatizacion {
+  id                    Int      @id @default(autoincrement())
+  codigo                String
+  origen                String   @default("MANUAL")
+  estado                String   @default("OK")
+  resumen               String
+  cortesGenerados       Int      @default(0)
+  reconexionesGeneradas Int      @default(0)
+  pagosConciliados      Int      @default(0)
+  detalleJson           String?  @db.Text
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([codigo])
+  @@index([estado])
+  @@index([createdAt])
+}
+
+model Reclamo {
+  id                 Int       @id @default(autoincrement())
+  abonadoId          Int
+  tecnicoId          Int?
+  tipoServicio       String
+  descripcion        String
+  prioridad          String
+  estado             String    @default("ABIERTO")
+  fechaApertura      DateTime  @default(now())
+  fechaCierre        DateTime?
+  diagnosticoCierre  String?   @db.Text
+  resolucionCierre   String?   @db.Text
+  abonado            Abonado   @relation(fields: [abonadoId], references: [id])
+  tecnico            Usuario?  @relation(fields: [tecnicoId], references: [id])
+  materiales         ReclamoMaterial[]
+  ordenesTrabajo     OrdenTrabajo[]
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([abonadoId])
+  @@index([tecnicoId])
+  @@index([estado])
+}
+
+model Material {
+  id                 Int               @id @default(autoincrement())
+  codigo             String            @unique
+  nombre             String
+  categoria          String
+  unidad             String            @default("UN")
+  stockActual        Decimal           @default(0) @db.Decimal(10, 2)
+  stockMinimo        Decimal           @default(0) @db.Decimal(10, 2)
+  costoPromedio      Decimal           @default(0) @db.Decimal(10, 2)
+  precioFacturable   Decimal?          @db.Decimal(10, 2)
+  ivaAlicuota        Decimal           @default(21) @db.Decimal(5, 2)
+  facturable         Boolean           @default(true)
+  activo             Boolean           @default(true)
+  observaciones      String?           @db.Text
+  comprasDetalle     CompraDetalle[]
+  movimientosStock   MovimientoStock[]
+  reclamosMateriales ReclamoMaterial[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([categoria])
+  @@index([activo])
+}
+
+model Proveedor {
+  id             Int      @id @default(autoincrement())
+  razonSocial    String
+  nombreFantasia String?
+  cuit           String?  @unique
+  email          String?
+  telefono       String?
+  direccion      String?
+  localidad      String?
+  provincia      String?
+  condicionIva   String   @default("RESPONSABLE_INSCRIPTO")
+  activo         Boolean  @default(true)
+  observaciones  String?  @db.Text
+  compras        Compra[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([razonSocial])
+  @@index([activo])
+  @@index([condicionIva])
+}
+
+model Compra {
+  id            Int            @id @default(autoincrement())
+  proveedorId   Int?
+  proveedor     String
+  comprobante   String?
+  fecha         DateTime       @default(now())
+  estado        String         @default("REGISTRADA")
+  total         Decimal        @default(0) @db.Decimal(10, 2)
+  observaciones String?        @db.Text
+  motivoAnulacion String?      @db.Text
+  anuladoAt     DateTime?
+  proveedorRef  Proveedor?     @relation(fields: [proveedorId], references: [id])
+  detalles      CompraDetalle[]
+  movimientos   MovimientoStock[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([proveedorId])
+  @@index([fecha])
+  @@index([estado])
+}
+
+model CompraDetalle {
+  id            Int       @id @default(autoincrement())
+  compraId      Int
+  materialId    Int
+  cantidad      Decimal   @db.Decimal(10, 2)
+  costoUnitario Decimal   @db.Decimal(10, 2)
+  subtotal      Decimal   @db.Decimal(10, 2)
+  compra        Compra    @relation(fields: [compraId], references: [id])
+  material      Material  @relation(fields: [materialId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([compraId])
+  @@index([materialId])
+}
+
+model MovimientoStock {
+  id            Int       @id @default(autoincrement())
+  materialId    Int
+  compraId      Int?
+  reclamoId     Int?
+  tipo          String
+  cantidad      Decimal   @db.Decimal(10, 2)
+  costoUnitario Decimal?  @db.Decimal(10, 2)
+  descripcion   String?
+  material      Material  @relation(fields: [materialId], references: [id])
+  compra        Compra?   @relation(fields: [compraId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([materialId])
+  @@index([compraId])
+}
+
+model ReclamoMaterial {
+  id                     Int            @id @default(autoincrement())
+  reclamoId              Int
+  materialId             Int
+  cantidad               Decimal        @db.Decimal(10, 2)
+  costoUnitario          Decimal        @db.Decimal(10, 2)
+  precioFacturable       Decimal?       @db.Decimal(10, 2)
+  ivaAlicuota            Decimal        @default(21) @db.Decimal(5, 2)
+  facturarProximaFactura Boolean        @default(false)
+  facturado              Boolean        @default(false)
+  reclamo                Reclamo        @relation(fields: [reclamoId], references: [id])
+  material               Material       @relation(fields: [materialId], references: [id])
+  facturaDetalles        FacturaDetalle[]
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  @@index([reclamoId])
+  @@index([materialId])
+  @@index([facturarProximaFactura])
+}
+
+model Importacion {
+  id               Int      @id @default(autoincrement())
+  tipo             String
+  archivo          String
+  estado           String   @default("PENDIENTE")
+  filasProcesadas  Int      @default(0)
+  filasCreadas     Int      @default(0)
+  filasOmitidas    Int      @default(0)
+  resumen          String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([tipo])
+  @@index([estado])
+}
+
+model OrdenTrabajo {
+  id              Int       @id @default(autoincrement())
+  abonadoId       Int
+  servicioId      Int?
+  reclamoId       Int?
+  tecnicoId       Int?
+  tipo            String
+  estado          String    @default("PENDIENTE")
+  fechaSolicitud  DateTime  @default(now())
+  fechaProgramada DateTime?
+  fechaCierre     DateTime?
+  motivo          String
+  detalle         String?   @db.Text
+  resolucion      String?   @db.Text
+  cargoFacturable Boolean   @default(false)
+  abonado         Abonado   @relation(fields: [abonadoId], references: [id])
+  servicio        Servicio? @relation(fields: [servicioId], references: [id])
+  reclamo         Reclamo?  @relation(fields: [reclamoId], references: [id])
+  tecnico         Usuario?  @relation(fields: [tecnicoId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([abonadoId])
+  @@index([servicioId])
+  @@index([reclamoId])
+  @@index([tecnicoId])
+  @@index([tipo])
+  @@index([estado])
+  @@index([fechaProgramada])
+}
+
+model ComunicacionAbonado {
+  id                   Int       @id @default(autoincrement())
+  abonadoId            Int
+  usuarioId            Int
+  canal                String
+  tipo                 String
+  asunto               String
+  mensaje              String    @db.Text
+  estado               String    @default("REGISTRADA")
+  prioridad            String    @default("NORMAL")
+  origenModulo         String?
+  visibleOficinaVirtual Boolean  @default(false)
+  requiereSeguimiento  Boolean   @default(false)
+  programadaAt         DateTime?
+  enviadaAt            DateTime?
+  errorDetalle         String?   @db.Text
+  metadataJson         String?   @db.Text
+  abonado              Abonado   @relation(fields: [abonadoId], references: [id])
+  usuario              Usuario   @relation(fields: [usuarioId], references: [id])
+  interaccionesPortal  PortalInteraccion[]
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([abonadoId])
+  @@index([usuarioId])
+  @@index([canal])
+  @@index([tipo])
+  @@index([estado])
+  @@index([visibleOficinaVirtual])
+  @@index([createdAt])
+  @@index([programadaAt])
+}
+
+model PlantillaComunicacion {
+  id                          Int      @id @default(autoincrement())
+  codigo                      String   @unique
+  nombre                      String
+  canal                       String
+  tipo                        String
+  asuntoTemplate              String
+  mensajeTemplate             String   @db.Text
+  prioridadDefault            String   @default("NORMAL")
+  visibleOficinaVirtualDefault Boolean @default(false)
+  requiereSeguimientoDefault  Boolean  @default(false)
+  activa                      Boolean  @default(true)
+  observaciones               String?  @db.Text
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@index([canal])
+  @@index([tipo])
+  @@index([activa])
+}
+
+model PublicacionPortal {
+  id                   Int       @id @default(autoincrement())
+  abonadoId            Int?
+  usuarioId            Int?
+  titulo               String
+  resumen              String?
+  contenido            String    @db.Text
+  categoria            String    @default("GENERAL")
+  prioridad            String    @default("NORMAL")
+  estado               String    @default("PUBLICADA")
+  visibleDesde         DateTime?
+  visibleHasta         DateTime?
+  destacado            Boolean   @default(false)
+  requiereConfirmacion Boolean   @default(false)
+  abonado              Abonado?  @relation(fields: [abonadoId], references: [id])
+  usuario              Usuario?  @relation("PublicacionPortalAutor", fields: [usuarioId], references: [id])
+  interaccionesPortal  PortalInteraccion[]
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([abonadoId])
+  @@index([usuarioId])
+  @@index([estado])
+  @@index([categoria])
+  @@index([destacado])
+  @@index([visibleDesde])
+  @@index([visibleHasta])
+}
+
+model PortalInteraccion {
+  id              Int                 @id @default(autoincrement())
+  abonadoId       Int
+  publicacionId   Int?
+  comunicacionId  Int?
+  tipo            String              @default("LECTURA")
+  origen          String              @default("OFICINA_VIRTUAL")
+  observaciones   String?             @db.Text
+  leidoAt         DateTime?
+  confirmadoAt    DateTime?
+  abonado         Abonado             @relation(fields: [abonadoId], references: [id])
+  publicacion     PublicacionPortal?  @relation(fields: [publicacionId], references: [id])
+  comunicacion    ComunicacionAbonado? @relation(fields: [comunicacionId], references: [id])
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([abonadoId])
+  @@index([publicacionId])
+  @@index([comunicacionId])
+  @@index([tipo])
+  @@index([confirmadoAt])
+  @@index([leidoAt])
+}
+
+model CajaCierre {
+  id                     Int       @id @default(autoincrement())
+  fecha                  DateTime
+  estado                 String    @default("ABIERTA")
+  saldoInicial           Decimal   @default(0) @db.Decimal(10, 2)
+  ingresosSistema        Decimal   @default(0) @db.Decimal(10, 2)
+  efectivoSistema        Decimal   @default(0) @db.Decimal(10, 2)
+  transferenciaSistema   Decimal   @default(0) @db.Decimal(10, 2)
+  tarjetaSistema         Decimal   @default(0) @db.Decimal(10, 2)
+  efectivoDeclarado      Decimal?  @db.Decimal(10, 2)
+  transferenciaDeclarada Decimal?  @db.Decimal(10, 2)
+  tarjetaDeclarada       Decimal?  @db.Decimal(10, 2)
+  totalDeclarado         Decimal?  @db.Decimal(10, 2)
+  diferencia             Decimal?  @db.Decimal(10, 2)
+  observacionesApertura  String?   @db.Text
+  observacionesCierre    String?   @db.Text
+  aperturaAt             DateTime  @default(now())
+  cierreAt               DateTime?
+  usuarioAperturaId      Int
+  usuarioCierreId        Int?
+  usuarioApertura        Usuario   @relation("CajaApertura", fields: [usuarioAperturaId], references: [id])
+  usuarioCierre          Usuario?  @relation("CajaCierre", fields: [usuarioCierreId], references: [id])
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([fecha])
+  @@index([estado])
+  @@index([usuarioAperturaId])
+  @@index([usuarioCierreId])
+}
+
+model Auditoria {
+  id          Int      @id @default(autoincrement())
+  actorId     Int?
+  modulo      String
+  accion      String
+  entidadTipo String
+  entidadId   Int?
+  descripcion String
+  detalleJson String?  @db.Text
+  actor       Usuario? @relation(fields: [actorId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([actorId])
+  @@index([modulo])
+  @@index([accion])
+  @@index([entidadTipo])
+  @@index([entidadId])
+  @@index([createdAt])
+}
