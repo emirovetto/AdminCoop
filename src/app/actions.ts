@@ -697,9 +697,18 @@ export async function loginAction(formData: FormData) {
     redirectWithMessage("/login", "error", "Completa email y contrasena.");
   }
 
-  const user = await prisma.usuario.findUnique({
-    where: { email },
-  });
+  let user;
+  try {
+    user = await prisma.usuario.findUnique({
+      where: { email },
+    });
+  } catch {
+    redirectWithMessage(
+      "/login",
+      "error",
+      "La base operativa no esta disponible. El acceso interno quedo temporalmente en modo contingencia.",
+    );
+  }
 
   if (!user || !user.activo || !user.passwordHash || !verifyPassword(password, user.passwordHash)) {
     redirectWithMessage("/login", "error", "Credenciales invalidas.");
@@ -758,18 +767,27 @@ export async function portalLoginAction(formData: FormData) {
     redirectWithMessage("/portal-cliente/login", "error", "Completa numero de abonado y contrasena.");
   }
 
-  const abonado = await prisma.abonado.findUnique({
-    where: { numeroAbonado },
-    select: {
-      id: true,
-      numeroAbonado: true,
-      portalActivo: true,
-      portalPasswordHash: true,
-      nombre: true,
-      apellido: true,
-      razonSocial: true,
-    },
-  });
+  let abonado;
+  try {
+    abonado = await prisma.abonado.findUnique({
+      where: { numeroAbonado },
+      select: {
+        id: true,
+        numeroAbonado: true,
+        portalActivo: true,
+        portalPasswordHash: true,
+        nombre: true,
+        apellido: true,
+        razonSocial: true,
+      },
+    });
+  } catch {
+    return redirectWithMessage(
+      "/portal-cliente/login",
+      "error",
+      "La oficina virtual esta temporalmente en modo contingencia por falta de conexion con la base operativa.",
+    );
+  }
 
   if (!abonado) {
     return redirectWithMessage("/portal-cliente/login", "error", "Credenciales invalidas del portal.");

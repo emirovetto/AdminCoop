@@ -2,20 +2,23 @@ import { redirect } from "next/navigation";
 import { loginAction } from "@/app/actions";
 import { FeedbackBanner } from "@/components/shared/feedback-banner";
 import { SubmitButton } from "@/components/shared/submit-button";
-import { getCurrentSession } from "@/lib/auth";
+import { getCurrentSessionSafe } from "@/lib/auth";
 
 type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function LoginPage({ searchParams }: PageProps) {
-  const session = await getCurrentSession();
+  const { session, databaseUnavailable } = await getCurrentSessionSafe();
   if (session) {
     redirect("/");
   }
 
   const params = searchParams ? await searchParams : undefined;
   const error = typeof params?.error === "string" ? params.error : undefined;
+  const systemMessage = databaseUnavailable
+    ? "La base operativa no esta disponible en este momento. El acceso interno quedo temporalmente en modo contingencia."
+    : undefined;
 
   return (
     <section className="login-shell">
@@ -53,23 +56,30 @@ export default async function LoginPage({ searchParams }: PageProps) {
           <p>
             Inicia sesion para entrar al tablero principal y continuar la operacion del dia.
           </p>
+          <FeedbackBanner message={systemMessage} tone="error" />
           <FeedbackBanner message={error} tone="error" />
           <form action={loginAction} className="form-panel form-panel--login">
-            <label className="field">
-              <span>Email</span>
-              <input name="email" placeholder="lucia@coop.local" required type="email" />
-            </label>
-            <label className="field">
-              <span>Contrasena</span>
-              <input name="password" placeholder="Tu contrasena" required type="password" />
-            </label>
-            <div className="form-actions">
-              <SubmitButton idleLabel="Ingresar al panel" pendingLabel="Ingresando..." />
-            </div>
+            <fieldset disabled={databaseUnavailable}>
+              <label className="field">
+                <span>Email</span>
+                <input name="email" placeholder="lucia@coop.local" required type="email" />
+              </label>
+              <label className="field">
+                <span>Contrasena</span>
+                <input name="password" placeholder="Tu contrasena" required type="password" />
+              </label>
+              <div className="form-actions">
+                <SubmitButton idleLabel="Ingresar al panel" pendingLabel="Ingresando..." />
+              </div>
+            </fieldset>
           </form>
           <div className="login-note">
             <strong>Acceso restringido</strong>
-            <span>Solo para personal autorizado de la cooperativa.</span>
+            <span>
+              {databaseUnavailable
+                ? "El formulario queda bloqueado hasta recuperar la conexion con la base de datos."
+                : "Solo para personal autorizado de la cooperativa."}
+            </span>
           </div>
         </article>
       </div>
