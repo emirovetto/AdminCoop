@@ -143,15 +143,6 @@ export async function getCurrentSession() {
   return user;
 }
 
-export async function getCurrentSessionSafe() {
-  try {
-    const session = await getCurrentSession();
-    return { session, databaseUnavailable: false };
-  } catch {
-    return { session: null, databaseUnavailable: true };
-  }
-}
-
 export async function getCurrentPortalSession() {
   const cookieStore = await cookies();
   const token = cookieStore.get(PORTAL_SESSION_COOKIE)?.value;
@@ -186,15 +177,6 @@ export async function getCurrentPortalSession() {
   }
 
   return abonado;
-}
-
-export async function getCurrentPortalSessionSafe() {
-  try {
-    const session = await getCurrentPortalSession();
-    return { session, databaseUnavailable: false };
-  } catch {
-    return { session: null, databaseUnavailable: true };
-  }
 }
 
 export async function requireUser() {
